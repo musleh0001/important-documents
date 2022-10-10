@@ -36,8 +36,6 @@ db.products.find().pretty();
 db.products.insertMany([{ name: "Keyboard"}, { name: "Mouse" }]);
 ```
 
-
-
 ###### Find single data
 
 ```mongodb
@@ -64,5 +62,3 @@ db.products.deleteOne({ name: "iPhone" });
 db.products.deleteMany({ active: false });
 Note: Remove is deprecated
 ```
-
-
