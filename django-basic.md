@@ -571,7 +571,7 @@ Student.objects.raw("SELECT * FROM student_student WHERE age=20")
 Student.objects.raw("SELECT * FROM student_student WHERE age=20")[:2]
 ```
 
-####  
+#### 
 
 #### Performing custom SQL directly
 
@@ -601,6 +601,10 @@ print(r)
   - One-to-one link is created automatically
 
 - Proxy models
+  
+  - Change the behavior of a model
+  
+  - Proxy models operate on the original model
 
 ```python
 # Abstract Model
@@ -627,5 +631,297 @@ class Books(models.Model):
     created = models.DateTimeField(auto_now_add=True)
 
 class ISBN(Books):
+    books_ptr = models.OneToOneField(
+                    Books, 
+                    on_delete=models.CASCADE,
+                    parent_link=True,
+                    primary_key=True
+                )
     ISBN = models.TextField()
+```
+
+```python
+# Proxy Models
+class BookContent(models.Model):
+    title = models.CharField(max_length=255)
+    created = models.DateTimeField(auto_now_add=True)
+
+class BookOrders(BookContent):
+    objects = NewManager()
+
+    class Meta:
+        proxy = True
+        ordering = ['created']
+
+    def created_on(self):
+        return timezone.now() - self.created
+```
+
+#### django-debug-toolbar - towards optimization
+
+- System information
+
+- Timing
+
+- Setting / Configurations
+
+- Header
+
+- SQL
+
+- Templates, includes
+
+#### Extensible Data Modeling - Django ORM
+
+- Solution 1: Concrete table inheritance
+
+- Solution 2: Multi-table inheritance
+
+- Solution 3: Abstract models
+
+- Solution 4: Polymorphism
+
+```python
+from django.contrib.contenttypes.models import ContentType
+from django.contrib.contenttypes.fields import GenericForeignKey
+
+class Product(models.Model):
+    content_type = models.ForeignKey(
+                     ContentType, 
+                     on_delete=models.CASCADE,
+                     limit_choices_to={'model__in': ('book', 'cupboard')}
+                    )
+    object_id = models.PositiveIntegerField()
+    item = GenericForeignKey('content_type', 'object_id')
+
+    class Meta:
+        ordering = ['object_id']
+
+class Book:
+    pass
+class Cupboard:
+    pass
+```
+
+#### Transaction Atomicity
+
+###### ACID
+
+- Atomic / Atomicity
+
+- Consistency
+
+- Isolated
+
+- Durable
+
+```python
+from django.db import transaction
+
+@transaction.atomic
+def payment(request):
+    # do something...
+    pass
+
+def payment(request):
+    entries = Entry.objects.select_for_update()
+                .filter(author=request.user) # lock the row
+    with transaction.atomic():
+        # do something ...
+    pass
+```
+
+#### Import data from CSV
+
+```shell
+cat filename.sql | python manage.py dbshell
+```
+
+#### Aggregation
+
+```python
+from django.db.models import Sum, Min, Max, Avg
+
+Book.objects.aggregate(total_rating=Sum('ratings_count'))
+```
+
+#### PostgreSQLFull Text Search
+
+- allows documents to be preprocessed and an index saved for later rapid searching
+
+- optionally to sort by relevence
+
+- fuzzy search for misspelling
+
+- accent / language support
+
+- weighting, categorization, highlighting
+
+```python
+# Case sensitive
+book.objects.get(headline__contains="harry")
+
+# Case insensitive
+book.objects.get(headline_icontains="harry")
+
+# analyze and execution time
+book.objects.filter(title__icontains="harry").explain(analyze=True)
+```
+
+```python
+INSTALLED_APPS += [
+    'django.contrib.postgres',
+]
+
+# query
+book.objects.filter(title__search="harry")
+```
+
+```python
+from django.contrib.postgres.search import SearchVector
+
+# SearchVector (search against multiple fields)
+results = Book.objects.annotate(search=SearchVector('title', 'authors'),)
+                        .filter(search=q)
+```
+
+```python
+from django.contrib.postgres.search import (
+                SearchQuery,
+                SearchRank,
+                SearchVector,
+            )
+
+vector = SearchVector("title")
+query = SearchQuery(q)
+print(
+        Book.objects.annotate(rank=SearchRank(vector, query))
+        .order_by("-rank")
+        .explain(analyze=True)
+     )
+results = Book.objects.annotate(rank=SearchRank(vector, query)).order_by(
+                "-rank"
+            )
+```
+
+```python
+from django.contrib.postgres.search import (
+                SearchQuery,
+                SearchRank,
+                SearchVector,
+            )
+
+vector = SearchVector("title", weight="B") + SearchVector(
+                "authors", weight="A"
+            )
+query = SearchQuery(q)
+results = Book.objects.annotate(rank=SearchRank(vector, query)).order_by(
+                "-rank"
+            )
+```
+
+```python
+from django.contrib.postgres.search import (
+                SearchQuery,
+                SearchRank,
+                SearchVector,
+            )
+
+vector = SearchVector("title", weight="B") + SearchVector(
+                "authors", weight="A"
+            )
+query = SearchQuery(q)
+results = Book.objects.annotate(
+                rank=SearchRank(vector, query, cover_density=True))
+            .order_by("-rank")
+```
+
+```python
+from django.contrib.postgres.search import TrigramSimilarity
+
+# Note: Have to install pg_trgm extension on postgresql
+# similarity__gte=[0.1, 0.3, 0.6, 0.8]
+results = (
+                Book.objects.annotate(
+                    similarity=TrigramSimilarity("title", q),
+                )
+                .filter(similarity__gte=0.1)
+                .order_by("-similarity")
+            )
+```
+
+```python
+from django.contrib.postgres.search import (
+                TrigramSimilarity,
+                TrigramDistance,
+            )
+```
+
+#### Postgres indexes
+
+```python
+# settings
+INSTALLED_APPS = [
+    "django.contrib.postgres",
+]
+
+# Model
+from django.contrib.postgres.indexes import GinIndex
+
+class Book(models.Model):
+    title = models.CharField(..., db_index=True)
+
+    class Meta:
+        indexes = [
+            GinIndexes(name="NewGinIndex", fields=['title'], opclasses=[
+                'gin_trgm_ops'
+            ])
+        ]
+# Note: Then makemigrations
+
+# migrations
+from django.contrib.postgres.operations import BtreeGinExtension
+
+# ...
+operations = [
+    BtreeGinExtension(),
+]
+# Install extension
+
+# views
+from django.contrib.postgres.search import TrigramSimilarity
+
+class index(request):
+    # ...
+    q = request.cleaned_data.get('q')
+    results = Book.objects.filter(title__trigram_similar=q)
+                .annotate(similar=TrigramSimilarity("title", q))
+                .order_by("-similar")
+```
+
+#### get vs filter
+
+```python
+# Get return DoesNotExists error if data is not present
+Student.objects.get(pk=1)
+
+# Filter return Empty queryset if data is not present
+Student.objects.filter(pk=1)
+```
+
+#### Signal pre_delete, post_delete
+
+```python
+from django.db.models.signals import pre_delete, post_delete
+from django.dispatch import receiver
+
+from .models import Student
+
+@receiver(pre_delete, sender=Student)
+def pre_delete_profile(sender, **kwargs):
+    print("You are about to delete something")
+
+@receiver(post_delete, sender=Student)
+def post_delete_profile(sender, **kwargs):
+    print("You are about to delete something")
 ```
