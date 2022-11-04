@@ -503,7 +503,8 @@ class ProductSerializer(serializers.ModelSerializer):
 import json
 json.dumps(data) -> This is used to convert python object into json
                     string.
-json.loads(data) -> This is used to parse json strings.
+json.loads(data) -> This is used to parse json strings into python 
+                    object.
 ```
 
 # Django Query
@@ -762,7 +763,7 @@ Book.objects.aggregate(total_rating=Sum('ratings_count'))
 book.objects.get(headline__contains="harry")
 
 # Case insensitive
-book.objects.get(headline_icontains="harry")
+book.objects.get(headline__icontains="harry")
 
 # analyze and execution time
 book.objects.filter(title__icontains="harry").explain(analyze=True)
@@ -924,4 +925,95 @@ def pre_delete_profile(sender, **kwargs):
 @receiver(post_delete, sender=Student)
 def post_delete_profile(sender, **kwargs):
     print("You are about to delete something")
+```
+
+#### select_related vs prefetch_related
+
+```python
+class ModelA(models.Model):
+    pass
+
+class ModelB(models.Model):
+    a = models.ForeignKey(ModelA, on_delete=models.CASCADE)
+
+# Forward foreignkey relationship, OneToOneField or foreignkey
+ModelB.objects.select_related('a').all()
+
+# Reverse foreignkey relationship or reverse foreignkeys
+ModelA.objects.prefetch_related('modelb_set').all()
+```
+
+#### User groups and permissions
+
+```python
+# check permission
+user.has_perm('poll.add_vote')
+
+# FBV permission check
+from django.contrib.auth.decorators import permission_required
+
+@permission_required("poll.add_vote")
+def func(request):
+    pass
+
+# CBV permission check
+from django.contrib.auth.mixins import PermissionRequireMixin
+from django.views.generic import ListView
+
+class MyClass(PermissionRequireMixin, ListView):
+    permissino_required = 'poll.add_vote'
+```
+
+```python
+# fetch all user permissions
+user.user_permissions.all()
+
+user.user_permissions.set([permisson_list])
+user.user_permissions.add(permission1, permission2)
+user.user_permissions.remove(permission1, permission2)
+user.user_permissions.clear()
+```
+
+#### add permission on models
+
+```python
+from django.db import models
+
+class Vote(models.Model):
+    user = models.ForeignKey(User)
+    class Meta:
+        permissions = (
+                   ("view_student_reports", "can view student reports"),
+                   ("find_student_vote", "can find a student's vote"),
+        )
+```
+
+#### Create custom permissons programmatically
+
+```python
+from django.contrib.auth.models import Permission
+from django.contrib.contenttypes.models import ContentType
+
+content_type = ContentType.objects.get_for_model(Vote)
+permission = Permission.objects.create(
+    codename='can_see_vote_count',
+    name='Can See Vote Count',
+    content_type=content_type,
+)
+```
+
+#### Create group
+
+```python
+from django.contrib.auth.models import Group
+
+teacher_group, created = Group.objects.get_or_create(name='Teacher')
+teacher_group.permissions.set([permission_list])
+
+teacher_group.user_set.add(user)
+or
+user.groups.add(teacher_group)
+
+# find user in the group
+user.groups.filter(name='Teacher').exists()
 ```
