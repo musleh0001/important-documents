@@ -123,4 +123,15 @@ export FORMAT="$cyan ID$reset\t\t{{.ID}}\n
 
 - Detach a network from container => ```docker network disconnect <network_name>``` 
 
-13
+<div align="center">
+    <h1>Code With Mosh</h1>
+</div>
+
+##### What is docker?
+
+A platform for building, running and shipping applications.
+
+| ID  | Container                                          | Virtual Machine                                                                                  |
+| --- |:--------------------------------------------------:|:------------------------------------------------------------------------------------------------:|
+| 01  | An isolated environment for running an application | An abstraction of a machine (physical hardware). Note: Manage virtual machine using Hypervisors. |
+| 02  | Need low resources                                 | Need high resources                                                                              |
