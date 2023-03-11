@@ -91,4 +91,23 @@ filt = df['ProgrammingLanguage'].str.contains('Python', na=False)
 df[filt, ['ProgrammingLanguage', 'Country']]
 ```
 
+### Rename column
+
+```python
+# rename all col name
+df.columns = ['col_1', 'col_2']
+df.columns = [x.lower() for x in df.columns]
+df.columns = df.columns.str.replace(' ', '_')
+
+# rename individual
+df.rename(columns={'col_name_1': 'col1', 'col_name_2': 'col2'})
+```
+
+### Update value
+
+```python
+df.loc[2, 'email'] = 'something@gmail.com'
+df.loc[2, ['name', 'age']] = ['musleh', 24]
+```
+
 
