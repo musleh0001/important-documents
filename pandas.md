@@ -110,4 +110,37 @@ df.loc[2, 'email'] = 'something@gmail.com'
 df.loc[2, ['name', 'age']] = ['musleh', 24]
 ```
 
+### Change multiple row
+
+- Apply
+
+- map
+
+- applymap
+
+- replace
+
+```python
+def update_email(email):
+    return email.upper()
+# apply on series data
+df['email'].apply(update_email)
+df['email'].apply(lambda email: email.lower())
+df['email'].apply(len)
+df['email'].apply(len, axis='columns')
+df.apply(pd.Series.min) # return min value of every column
+```
+
+```python
+df.applymap(len) # apply on full dataframe
+df.applymap(str.lower)
+```
+
+```python
+df['first'].map({'test': 'name'}) # return NaN if value not define
+df['first'].replace({'test': 'name'}) # change only specific value
+```
+
+
+
 
